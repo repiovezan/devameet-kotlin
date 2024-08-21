@@ -29,6 +29,15 @@ class MeetService(
 
     private val log = LoggerFactory.getLogger(MeetService::class.java)
 
+    private val availablePositions = mutableListOf(
+        Position(0, 0),
+        Position(1, 0),
+        Position(0, 1),
+        Position(1, 1),
+        Position(2, 0),
+        Position(0, 2)
+    )
+
     fun getUserMeets(user:User) : List<Meet>{
         return meetRepository.findAllByUserId(user.id)
     }
@@ -69,16 +78,25 @@ class MeetService(
             throw BadRequestException(messages)
         }
 
+        if (availablePositions.isEmpty()) {
+            messages.add("Sem posições novas disponíveis")
+            throw BadRequestException(messages)
+        }
+        val userPosition = availablePositions.removeAt(0)
+
         val meet = Meet(
             name = dto.name,
             color = dto.color,
             user = user,
-            link = generateLink()
+            link = generateLink(),
+            positionX = userPosition.x,
+            positionY = userPosition.y
         )
 
         meetRepository.save(meet)
         log.info("create - finish success")
     }
+
 
     @Throws(BadRequestException::class)
     fun update(user: User, meetId: Long, dto: MeetUpdateRequestDto){
@@ -103,30 +121,6 @@ class MeetService(
             meet.color = dto.color
         }
 
-        var obj : MeetObjectRequestDto
-        for (i in 0 until dto.objects.size){
-            obj = dto.objects[i]
-
-            if(obj.name.isNullOrBlank() || obj.name.length < 2){
-                messages.add("Nome do objeto inválido na posição: $i")
-            }
-
-            if(obj.x < 0 || obj.x > 8){
-                messages.add("Eixo x inválido na posição: $i")
-            }
-
-            if(obj.y < 0 || obj.y > 8){
-                messages.add("Eixo y inválido na posição: $i")
-            }
-            if(obj.zIndex < 0){
-                messages.add("Zindex inválido na posição: $i")
-            }
-        }
-
-        if(messages.size > 0){
-            throw BadRequestException(messages)
-        }
-
         meetRepository.save(meet)
         meetObjectRepository.deleteAllByMeetId(meet.id)
 
@@ -146,4 +140,5 @@ class MeetService(
 
         log.info("update - finish success")
     }
+
 }
